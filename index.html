@@ -2,39 +2,42 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Darts 501</title>
 
 <style>
-body {
-  margin: 0;
-  background: #111;
-  overflow: hidden;
-  color: white;
-  font-family: sans-serif;
-}
-
-canvas {
-  display: block;
-}
+body { margin:0; background:#111; overflow:hidden; color:white; font-family:sans-serif; }
+canvas { display:block; }
 
 #ui {
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  font-size: 18px;
+  position:fixed;
+  top:10px;
+  left:10px;
+  font-size:18px;
 }
 
 #overlay {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 80px;
-  font-weight: bold;
-  color: gold;
-  opacity: 0;
-  transition: 0.3s;
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  font-size:80px;
+  font-weight:bold;
+  color:gold;
+  opacity:0;
+  pointer-events:none;
+  transition:.3s;
+}
+
+#award {
+  position:fixed;
+  bottom:20%;
+  width:100%;
+  text-align:center;
+  font-size:36px;
+  color:#00e0ff;
+  opacity:0;
+  transition:.5s;
 }
 </style>
 </head>
@@ -49,6 +52,7 @@ canvas {
 </div>
 
 <div id="overlay"></div>
+<div id="award"></div>
 
 <script>
 const canvas = document.getElementById("game");
@@ -58,23 +62,66 @@ const scoreEl = document.getElementById("score");
 const roundEl = document.getElementById("round");
 const throwEl = document.getElementById("throw");
 const overlay = document.getElementById("overlay");
+const awardEl = document.getElementById("award");
 
 let W,H,boardX,boardY,boardR;
 
-let aiming=false;
-let aimX=0,aimY=0;
-let spread=40,spreadDir=-1;
+let aiming=false, aimX=0, aimY=0;
+let spread=40, spreadDir=-1;
 
 let dartFlying=false;
 let dart=null;
-
 let darts=[];
 
-// ===== 501ルール =====
+// ===== ゲーム状態 =====
 let score=501;
 let round=1;
 let throwCount=1;
 let roundStartScore=501;
+let roundScores=[];
+
+// ===== Audio =====
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playHitSound(s){
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain); gain.connect(audioCtx.destination);
+
+  osc.frequency.value = 300 + s8;
+  osc.type = s>=50 ? "sawtooth" : "square";
+  gain.gain.value = 0.2;
+
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.1 + s/300);
+}
+
+function playBustSound(){
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain); gain.connect(audioCtx.destination);
+
+  osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+  osc.frequency.linearRampToValueAtTime(80, audioCtx.currentTime+0.4);
+  gain.gain.value = 0.3;
+
+  osc.start();
+  osc.stop(audioCtx.currentTime+0.4);
+}
+
+function playFanfare(){
+  [400,600,800].forEach((f,i)=>{
+    const osc=audioCtx.createOscillator();
+    const gain=audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+
+    osc.frequency.value=f;
+    gain.gain.value=0.2;
+
+    osc.start(audioCtx.currentTime + i0.1);
+    osc.stop(audioCtx.currentTime + i0.1 + 0.2);
+  });
+}
 
 // ===== リサイズ =====
 function resize(){
@@ -87,7 +134,7 @@ function resize(){
 addEventListener("resize",resize);
 resize();
 
-// ===== ダーツボード =====
+// ===== ボード =====
 function drawBoard(){
   ctx.save();
   ctx.translate(boardX,boardY);
@@ -128,14 +175,12 @@ function drawCircle(r,color){
   ctx.fill();
 }
 
-// ===== 三菱マークダーツ =====
-function drawMitsubishiDart(){
+// ===== 三菱ダーツ =====
+function drawMitsubishi(){
   ctx.fillStyle="#e60012";
-
   for(let i=0;i<3;i++){
     ctx.save();
-    ctx.rotate(i * Math.PI * 2 / 3);
-
+    ctx.rotate(iMath.PI2/3);
     ctx.beginPath();
     ctx.moveTo(0,-10);
     ctx.lineTo(6,0);
@@ -143,33 +188,27 @@ function drawMitsubishiDart(){
     ctx.lineTo(-6,0);
     ctx.closePath();
     ctx.fill();
-
     ctx.restore();
   }
 }
 
-// ===== 刺さったダーツ =====
-function drawStuckDarts(){
+function drawStuck(){
   darts.forEach(d=>{
     ctx.save();
     ctx.translate(d.x,d.y);
-    drawMitsubishiDart();
+    drawMitsubishi();
     ctx.restore();
   });
 }
 
-// ===== 飛んでいるダーツ =====
 function drawDart(){
   if(!dart) return;
 
   let scale=1 - dart.t0.7;
-
   ctx.save();
   ctx.translate(dart.x,dart.y);
   ctx.scale(scale,scale);
-
-  drawMitsubishiDart();
-
+  drawMitsubishi();
   ctx.restore();
 }
 
@@ -194,26 +233,24 @@ function updateAim(){
   if(!aiming) return;
 
   spread += spreadDir4;
-
   if(spread<10){spread=10;spreadDir=1;}
   if(spread>80){spread=80;spreadDir=-1;}
 }
 
 // ===== 入力 =====
-function startAim(x,y){
+canvas.addEventListener("pointerdown",e=>{
   if(dartFlying) return;
   aiming=true;
-  aimX=x;
-  aimY=y;
-}
-
-function moveAim(x,y){
-  if(!aiming) return;
-  aimX=x;
-  aimY=y;
-}
-
-function throwDart(){
+  aimX=e.clientX;
+  aimY=e.clientY;
+});
+canvas.addEventListener("pointermove",e=>{
+  if(aiming){
+    aimX=e.clientX;
+    aimY=e.clientY;
+  }
+});
+canvas.addEventListener("pointerup",()=>{
   if(!aiming||dartFlying) return;
   aiming=false;
 
@@ -223,36 +260,26 @@ function throwDart(){
   let tx=aimX+Math.cos(a)d;
   let ty=aimY+Math.sin(a)d;
 
-  dart={
-    sx:W/2,
-    sy:H+100,
-    tx,ty,
-    x:W/2,
-    y:H+100,
-    t:0
-  };
-
+  dart={sx:W/2,sy:H+100,tx,ty,x:W/2,y:H+100,t:0};
   dartFlying=true;
-}
+});
 
-// ===== ダーツ更新 =====
+// ===== ダーツ =====
 function updateDart(){
   if(!dartFlying) return;
 
   dart.t+=0.04;
 
   if(dart.t>=1){
-    dart.t=1;
     dartFlying=false;
 
     let s=calcScore(dart.tx,dart.ty);
 
     // バースト
     if(score - s < 0){
+      playBustSound();
       overlay.textContent="BUST";
-      overlay.style.opacity=1;
-
-      setTimeout(()=>overlay.style.opacity=0,800);
+      showOverlay();
 
       score = roundStartScore;
       nextRound();
@@ -260,10 +287,12 @@ function updateDart(){
     }
 
     score -= s;
+    roundScores.push(s);
+
+    playHitSound(s);
 
     overlay.textContent=s;
-    overlay.style.opacity=1;
-    setTimeout(()=>overlay.style.opacity=0,500);
+    showOverlay();
 
     darts.push({x:dart.tx,y:dart.ty});
 
@@ -276,10 +305,16 @@ function updateDart(){
   dart.y = baseY - Math.sin(tMath.PI)150;
 }
 
-// ===== 進行 =====
+function showOverlay(){
+  overlay.style.opacity=1;
+  setTimeout(()=>overlay.style.opacity=0,500);
+}
+
+// ===== ラウンド =====
 function nextThrow(){
   throwCount++;
   if(throwCount>3){
+    checkAward();
     nextRound();
   }
   updateUI();
@@ -289,20 +324,32 @@ function nextRound(){
   round++;
   throwCount=1;
   roundStartScore=score;
+  roundScores=[];
+  darts=[];
   updateUI();
 }
 
-function updateUI(){
-  scoreEl.textContent=score;
-  roundEl.textContent=round;
-  throwEl.textContent=throwCount;
+// ===== アワード =====
+function checkAward(){
+  const sum = roundScores.reduce((a,b)=>a+b,0);
+
+  let award="";
+
+  if(sum===180) award="TON 80";
+  else if(sum>=151) award="HIGH TON";
+  else if(sum>=100) award="LOW TON";
+
+  if(roundScores.filter(s=>s===50).length===3) award="HAT TRICK";
+
+  if(award){
+    awardEl.textContent=award;
+    awardEl.style.opacity=1;
+    playFanfare();
+    setTimeout(()=>awardEl.style.opacity=0,1500);
+  }
 }
 
 // ===== 計算 =====
-function lerp(a,b,t){
-  return a+(b-a)t;
-}
-
 function calcScore(x,y){
   let dx=x-boardX;
   let dy=y-boardY;
@@ -325,16 +372,14 @@ function calcScore(x,y){
   return base;
 }
 
-// ===== イベント =====
-canvas.addEventListener("pointerdown",e=>{
-  startAim(e.clientX,e.clientY);
-});
-canvas.addEventListener("pointermove",e=>{
-  moveAim(e.clientX,e.clientY);
-});
-canvas.addEventListener("pointerup",()=>{
-  throwDart();
-});
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+// ===== UI =====
+function updateUI(){
+  scoreEl.textContent=score;
+  roundEl.textContent=round;
+  throwEl.textContent=throwCount;
+}
 
 // ===== ループ =====
 function loop(){
@@ -344,7 +389,7 @@ function loop(){
   updateDart();
 
   drawBoard();
-  drawStuckDarts();
+  drawStuck();
   drawAim();
   drawDart();
 
