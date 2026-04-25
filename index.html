@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Darts Game</title>
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      overflow: hidden;
+      font-family: sans-serif;
+      color: white;
+      touch-action: none;
+      user-select: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at center, #333, #111);
+    }
+
+    #ui {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      font-size: 18px;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    SCORE: <span id="score">0</span><br>
+    長押しで構える → 離すと投げる
+  </div>
+
+  <canvas id="game"></canvas>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.getElementById("score");
+
+    let W, H;
+    let boardX, boardY, boardR;
+
+    let aiming = false;
+    let aimX = 0;
+    let aimY = 0;
+    let spread = 40;
+    let spreadDir = -1;
+
+    let dartFlying = false;
+    let dart = null;
+
+    let totalScore = 0;
+
+    const numbers = [
+      20, 1, 18, 4, 13,
+      6, 10, 15, 2, 17,
+      3, 19, 7, 16, 8,
+      11, 14, 9, 12, 5
+    ];
+
+    function resize() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+
+      boardX = W / 2;
+      boardY = H / 2;
+      boardR = Math.min(W, H) * 0.38;
+    }
+
+    window.addEventListener("resize", resize);
+    resize();
+
+    function drawBoard() {
+      ctx.save();
+      ctx.translate(boardX, boardY);
+
+      const slice = Math.PI * 2 / 20;
+      const startAngle = -Math.PI / 2 - slice / 2;
+
+      for (let i = 0; i < 20; i++) {
+        const a1 = startAngle + i * slice;
+        const a2 = a1 + slice;
+
+        // 外シングル
+        drawSector(a1, a2, boardR * 0.62, boardR * 0.95, i % 2 === 0 ? "#111" : "#eee");
+
+        // トリプル
+        drawSector(a1, a2, boardR * 0.52, boardR * 0.62, i % 2 === 0 ? "#c22" : "#2a2");
+
+        // 内シングル
+        drawSector(a1, a2, boardR * 0.18, boardR * 0.52, i % 2 === 0 ? "#111" : "#eee");
+
+        // ダブル
+        drawSector(a1, a2, boardR * 0.95, boardR, i % 2 === 0 ? "#c22" : "#2a2");
+
+        // 数字
+        const mid = (a1 + a2) / 2;
+        ctx.fillStyle = "white";
+        ctx.font = `${boardR * 0.08}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(
+          numbers[i],
+          Math.cos(mid) * boardR * 1.12,
+          Math.sin(mid) * boardR * 1.12
+        );
+      }
+
+      // ブル
+      drawCircle(boardR * 0.18, "#2a2");
+      drawCircle(boardR * 0.08, "#c22");
+
+      ctx.restore();
+    }
+
+    function drawSector(a1, a2, r1, r2, color) {
+      ctx.beginPath();
+      ctx.arc(0, 0, r2, a1, a2);
+      ctx.arc(0, 0, r1, a2, a1, true);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = "#777";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    function drawCircle(r, color) {
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = "#777";
+      ctx.stroke();
+    }
+
+    function drawAim() {
+      if (!aiming) return;
+
+      ctx.save();
+
+      // ブレ範囲
+      ctx.beginPath();
+      ctx.arc(aimX, aimY, spread, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255,255,255,0.7)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // クロスヘア
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      ctx.moveTo(aimX - 15, aimY);
+      ctx.lineTo(aimX + 15, aimY);
+      ctx.moveTo(aimX, aimY - 15);
+      ctx.lineTo(aimX, aimY + 15);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function updateAim() {
+      if (!aiming) return;
+
+      spread += spreadDir * 0.7;
+
+      if (spread < 15) {
+        spread = 15;
+        spreadDir = 1;
+      }
+
+      if (spread > 70) {
+        spread = 70;
+        spreadDir = -1;
+      }
+    }
+
+    function startAim(x, y) {
+      if (dartFlying) return;
+
+      aiming = true;
+      aimX = x;
+      aimY = y;
+      spread = 55;
+      spreadDir = -1;
+    }
+
+    function moveAim(x, y) {
+      if (!aiming) return;
+
+      aimX = x;
+      aimY = y;
+    }
+
+    function throwDart() {
+      if (!aiming || dartFlying) return;
+
+      aiming = false;
+
+      const angle = Math.random() * Math.PI * 2;
+      const distance = Math.random() * spread;
+
+      const targetX = aimX + Math.cos(angle) * distance;
+      const targetY = aimY + Math.sin(angle) * distance;
+
+      dart = {
+        startX: W / 2,
+        startY: H + 80,
+        targetX,
+        targetY,
+        x: W / 2,
+        y: H + 80,
+        t: 0
+      };
+
+      dartFlying = true;
+    }
+
+    function updateDart() {
+      if (!dartFlying || !dart) return;
+
+      dart.t += 0.025;
+
+      if (dart.t >= 1) {
+        dart.t = 1;
+        dartFlying = false;
+
+        const point = calcScore(dart.targetX, dart.targetY);
+        totalScore += point;
+        scoreEl.textContent = totalScore;
+      }
+
+      const t = dart.t;
+
+      dart.x = lerp(dart.startX, dart.targetX, t);
+
+      const baseY = lerp(dart.startY, dart.targetY, t);
+      const arc = Math.sin(t * Math.PI) * 180;
+      dart.y = baseY - arc;
+    }
+
+    function drawDart() {
+      if (!dart) return;
+
+      ctx.save();
+
+      ctx.strokeStyle = "silver";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(dart.x, dart.y);
+      ctx.lineTo(dart.x, dart.y + 35);
+      ctx.stroke();
+
+      ctx.fillStyle = "red";
+      ctx.beginPath();
+      ctx.moveTo(dart.x, dart.y);
+      ctx.lineTo(dart.x - 6, dart.y + 14);
+      ctx.lineTo(dart.x + 6, dart.y + 14);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function calcScore(x, y) {
+      const dx = x - boardX;
+      const dy = y - boardY;
+      const r = Math.sqrt(dx * dx + dy * dy);
+
+      if (r > boardR) return 0;
+
+      if (r <= boardR * 0.08) return 50;
+      if (r <= boardR * 0.18) return 25;
+
+      let angle = Math.atan2(dy, dx);
+      angle += Math.PI / 2;
+
+      if (angle < 0) angle += Math.PI * 2;
+
+      const slice = Math.PI * 2 / 20;
+      const index = Math.floor((angle + slice / 2) / slice) % 20;
+      const base = numbers[index];
+
+      if (r >= boardR * 0.95 && r <= boardR) {
+        return base * 2;
+      }
+
+      if (r >= boardR * 0.52 && r <= boardR * 0.62) {
+        return base * 3;
+      }
+
+      return base;
+    }
+
+    function getPointerPos(e) {
+      return {
+        x: e.clientX,
+        y: e.clientY
+      };
+    }
+
+    canvas.addEventListener("pointerdown", (e) => {
+      canvas.setPointerCapture(e.pointerId);
+      const p = getPointerPos(e);
+      startAim(p.x, p.y);
+    });
+
+    canvas.addEventListener("pointermove", (e) => {
+      const p = getPointerPos(e);
+      moveAim(p.x, p.y);
+    });
+
+    canvas.addEventListener("pointerup", () => {
+      throwDart();
+    });
+
+    canvas.addEventListener("pointercancel", () => {
+      aiming = false;
+    });
+
+    function loop() {
+      ctx.clearRect(0, 0, W, H);
+
+      updateAim();
+      updateDart();
+
+      drawBoard();
+      drawAim();
+      drawDart();
+
+      requestAnimationFrame(loop);
+    }
+
+    loop();
+  </script>
+</body>
+</html>
