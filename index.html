@@ -68,45 +68,46 @@ let spread=40,spreadDir=-1;
 let dartFlying=false;
 let dart=null;
 
-// ★刺さったダーツ保存
 let darts=[];
 
-// ★501ルール
+// ===== 501ルール =====
 let score=501;
 let round=1;
 let throwCount=1;
 let roundStartScore=501;
 
+// ===== リサイズ =====
 function resize(){
   W=canvas.width=innerWidth;
   H=canvas.height=innerHeight;
   boardX=W/2;
   boardY=H/2;
-  boardR=Math.min(W,H)*0.38;
+  boardR=Math.min(W,H)0.38;
 }
 addEventListener("resize",resize);
 resize();
 
+// ===== ダーツボード =====
 function drawBoard(){
   ctx.save();
   ctx.translate(boardX,boardY);
 
   const nums=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
-  const slice=Math.PI*2/20;
+  const slice=Math.PI2/20;
   const start=-Math.PI/2 - slice/2;
 
   for(let i=0;i<20;i++){
-    let a1=start+i*slice;
+    let a1=start+islice;
     let a2=a1+slice;
 
-    drawSector(a1,a2,boardR*0.62,boardR*0.95,i%2?"#eee":"#111");
-    drawSector(a1,a2,boardR*0.52,boardR*0.62,i%2?"#2a2":"#c22");
-    drawSector(a1,a2,boardR*0.18,boardR*0.52,i%2?"#eee":"#111");
-    drawSector(a1,a2,boardR*0.95,boardR,i%2?"#2a2":"#c22");
+    drawSector(a1,a2,boardR0.62,boardR0.95,i%2?"#eee":"#111");
+    drawSector(a1,a2,boardR0.52,boardR0.62,i%2?"#2a2":"#c22");
+    drawSector(a1,a2,boardR0.18,boardR0.52,i%2?"#eee":"#111");
+    drawSector(a1,a2,boardR0.95,boardR,i%2?"#2a2":"#c22");
   }
 
-  drawCircle(boardR*0.18,"#2a2");
-  drawCircle(boardR*0.08,"#c22");
+  drawCircle(boardR0.18,"#2a2");
+  drawCircle(boardR0.08,"#c22");
 
   ctx.restore();
 }
@@ -122,58 +123,62 @@ function drawSector(a1,a2,r1,r2,color){
 
 function drawCircle(r,color){
   ctx.beginPath();
-  ctx.arc(boardX,boardY,r,0,Math.PI*2);
+  ctx.arc(boardX,boardY,r,0,Math.PI2);
   ctx.fillStyle=color;
   ctx.fill();
 }
 
-// ★刺さったダーツ描画（ひし形）
-function drawStuckDarts(){
-  darts.forEach(d=>{
-    ctx.save();
-    ctx.translate(d.x,d.y);
+// ===== 三菱マークダーツ =====
+function drawMitsubishiDart(){
+  ctx.fillStyle="#e60012";
 
-    ctx.fillStyle="red";
+  for(let i=0;i<3;i++){
+    ctx.save();
+    ctx.rotate(i * Math.PI * 2 / 3);
 
     ctx.beginPath();
-    ctx.moveTo(0,-8);
+    ctx.moveTo(0,-10);
     ctx.lineTo(6,0);
-    ctx.lineTo(0,8);
+    ctx.lineTo(0,10);
     ctx.lineTo(-6,0);
     ctx.closePath();
     ctx.fill();
 
     ctx.restore();
+  }
+}
+
+// ===== 刺さったダーツ =====
+function drawStuckDarts(){
+  darts.forEach(d=>{
+    ctx.save();
+    ctx.translate(d.x,d.y);
+    drawMitsubishiDart();
+    ctx.restore();
   });
 }
 
-// ★飛んでるダーツ（縮小して奥行き演出）
+// ===== 飛んでいるダーツ =====
 function drawDart(){
   if(!dart) return;
 
-  let scale=1 - dart.t*0.7;
+  let scale=1 - dart.t0.7;
 
   ctx.save();
   ctx.translate(dart.x,dart.y);
   ctx.scale(scale,scale);
 
-  ctx.fillStyle="red";
-  ctx.beginPath();
-  ctx.moveTo(0,-10);
-  ctx.lineTo(7,0);
-  ctx.lineTo(0,10);
-  ctx.lineTo(-7,0);
-  ctx.closePath();
-  ctx.fill();
+  drawMitsubishiDart();
 
   ctx.restore();
 }
 
+// ===== 照準 =====
 function drawAim(){
   if(!aiming) return;
 
   ctx.beginPath();
-  ctx.arc(aimX,aimY,spread,0,Math.PI*2);
+  ctx.arc(aimX,aimY,spread,0,Math.PI2);
   ctx.strokeStyle="white";
   ctx.stroke();
 
@@ -188,12 +193,13 @@ function drawAim(){
 function updateAim(){
   if(!aiming) return;
 
-  spread += spreadDir*4;
+  spread += spreadDir4;
 
   if(spread<10){spread=10;spreadDir=1;}
   if(spread>80){spread=80;spreadDir=-1;}
 }
 
+// ===== 入力 =====
 function startAim(x,y){
   if(dartFlying) return;
   aiming=true;
@@ -211,11 +217,11 @@ function throwDart(){
   if(!aiming||dartFlying) return;
   aiming=false;
 
-  let a=Math.random()*Math.PI*2;
-  let d=Math.random()*spread;
+  let a=Math.random()Math.PI2;
+  let d=Math.random()spread;
 
-  let tx=aimX+Math.cos(a)*d;
-  let ty=aimY+Math.sin(a)*d;
+  let tx=aimX+Math.cos(a)d;
+  let ty=aimY+Math.sin(a)d;
 
   dart={
     sx:W/2,
@@ -229,6 +235,7 @@ function throwDart(){
   dartFlying=true;
 }
 
+// ===== ダーツ更新 =====
 function updateDart(){
   if(!dartFlying) return;
 
@@ -240,17 +247,14 @@ function updateDart(){
 
     let s=calcScore(dart.tx,dart.ty);
 
-    // ★バースト判定
+    // バースト
     if(score - s < 0){
       overlay.textContent="BUST";
       overlay.style.opacity=1;
 
-      setTimeout(()=>{
-        overlay.style.opacity=0;
-      },800);
+      setTimeout(()=>overlay.style.opacity=0,800);
 
       score = roundStartScore;
-
       nextRound();
       return;
     }
@@ -261,7 +265,6 @@ function updateDart(){
     overlay.style.opacity=1;
     setTimeout(()=>overlay.style.opacity=0,500);
 
-    // ★刺さる
     darts.push({x:dart.tx,y:dart.ty});
 
     nextThrow();
@@ -270,16 +273,15 @@ function updateDart(){
   let t=dart.t;
   dart.x = lerp(dart.sx,dart.tx,t);
   let baseY = lerp(dart.sy,dart.ty,t);
-  dart.y = baseY - Math.sin(t*Math.PI)*150;
+  dart.y = baseY - Math.sin(tMath.PI)150;
 }
 
+// ===== 進行 =====
 function nextThrow(){
   throwCount++;
-
   if(throwCount>3){
     nextRound();
   }
-
   updateUI();
 }
 
@@ -287,7 +289,6 @@ function nextRound(){
   round++;
   throwCount=1;
   roundStartScore=score;
-
   updateUI();
 }
 
@@ -297,32 +298,34 @@ function updateUI(){
   throwEl.textContent=throwCount;
 }
 
+// ===== 計算 =====
 function lerp(a,b,t){
-  return a+(b-a)*t;
+  return a+(b-a)t;
 }
 
 function calcScore(x,y){
   let dx=x-boardX;
   let dy=y-boardY;
-  let r=Math.sqrt(dx*dx+dy*dy);
+  let r=Math.sqrt(dxdx+dydy);
 
   if(r>boardR) return 0;
-  if(r<boardR*0.08) return 50;
-  if(r<boardR*0.18) return 25;
+  if(r<boardR0.08) return 50;
+  if(r<boardR0.18) return 25;
 
   let angle=Math.atan2(dy,dx)+Math.PI/2;
-  if(angle<0) angle+=Math.PI*2;
+  if(angle<0) angle+=Math.PI2;
 
   let nums=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
-  let i=Math.floor(angle/(Math.PI*2/20));
+  let i=Math.floor(angle/(Math.PI2/20));
   let base=nums[i];
 
-  if(r>boardR*0.95) return base*2;
-  if(r>boardR*0.52 && r<boardR*0.62) return base*3;
+  if(r>boardR0.95) return base2;
+  if(r>boardR0.52 && r<boardR0.62) return base*3;
 
   return base;
 }
 
+// ===== イベント =====
 canvas.addEventListener("pointerdown",e=>{
   startAim(e.clientX,e.clientY);
 });
@@ -333,6 +336,7 @@ canvas.addEventListener("pointerup",()=>{
   throwDart();
 });
 
+// ===== ループ =====
 function loop(){
   ctx.clearRect(0,0,W,H);
 
