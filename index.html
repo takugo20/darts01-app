@@ -3,26 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Darts 50.ver1.01</title>
+<title>Darts 501</title>
 
 <style>
 body { margin:0; background:#111; overflow:hidden; color:white; font-family:sans-serif; }
 canvas { display:block; }
-
 #ui { position:fixed; top:10px; left:10px; font-size:18px; }
-
 #overlay {
   position:fixed; top:50%; left:50%;
   transform:translate(-50%,-50%);
   font-size:80px; color:gold;
   opacity:0; transition:.3s;
-}
-
-#award {
-  position:fixed; bottom:20%;
-  width:100%; text-align:center;
-  font-size:36px; color:#0ff;
-  opacity:0; transition:.5s;
 }
 </style>
 </head>
@@ -31,23 +22,16 @@ canvas { display:block; }
 <canvas id="game"></canvas>
 
 <div id="ui">
-score: <span id="score">501</span><br>
+SCORE: <span id="score">501</span><br>
 ROUND: <span id="round">1</span><br>
 THROW: <span id="throw">1</span>
 </div>
 
 <div id="overlay"></div>
-<div id="award"></div>
 
 <script>
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
-
-const scoreEl=document.getElementById("score");
-const roundEl=document.getElementById("round");
-const throwEl=document.getElementById("throw");
-const overlay=document.getElementById("overlay");
-const awardEl=document.getElementById("award");
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
 let W,H,boardX,boardY,boardR;
 
@@ -56,77 +40,36 @@ let spread=40, spreadDir=-1;
 
 let dartFlying=false;
 let dart=null;
-let darts=[];
-
-let score=501, round=1, throwCount=1;
-let roundStartScore=501;
-let roundScores=[];
-
-const audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-
-function playHitSound(s){
-  const o=audioCtx.createOscillator();
-  const g=audioCtx.createGain();
-  o.connect(g); g.connect(audioCtx.destination);
-  o.frequency.value=300+s8;
-  o.type=s>=50?"sawtooth":"square";
-  g.gain.value=0.2;
-  o.start();
-  o.stop(audioCtx.currentTime+0.1+s/300);
-}
-
-function playBustSound(){
-  const o=audioCtx.createOscillator();
-  const g=audioCtx.createGain();
-  o.connect(g); g.connect(audioCtx.destination);
-  o.frequency.setValueAtTime(200,audioCtx.currentTime);
-  o.frequency.linearRampToValueAtTime(80,audioCtx.currentTime+0.4);
-  g.gain.value=0.3;
-  o.start();
-  o.stop(audioCtx.currentTime+0.4);
-}
-
-function playFanfare(){
-  [400,600,800].forEach((f,i)=>{
-    const o=audioCtx.createOscillator();
-    const g=audioCtx.createGain();
-    o.connect(g); g.connect(audioCtx.destination);
-    o.frequency.value=f;
-    g.gain.value=0.2;
-    o.start(audioCtx.currentTime+i0.1);
-    o.stop(audioCtx.currentTime+i0.1+0.2);
-  });
-}
 
 function resize(){
-  W=canvas.width=innerWidth;
-  H=canvas.height=innerHeight;
-  boardX=W/2;
-  boardY=H/2;
-  boardR=Math.min(W,H)0.38;
+  W = canvas.width = innerWidth;
+  H = canvas.height = innerHeight;
+  boardX = W/2;
+  boardY = H/2;
+  boardR = Math.min(W,H)0.35;
 }
 addEventListener("resize",resize);
 resize();
 
+// ===== ボード =====
 function drawBoard(){
   ctx.save();
-  ctx.translate(boardX,boardY);
+  ctx.translate(boardX, boardY);
 
-  const nums=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
-  const slice=Math.PI2/20;
-  const start=-Math.PI/2 - slice/2;
+  const slice = Math.PI2/20;
+  const start = -Math.PI/2 - slice/2;
 
   for(let i=0;i<20;i++){
-    let a1=start+islice;
-    let a2=a1+slice;
+    let a1 = start + islice;
+    let a2 = a1 + slice;
 
-    drawSector(a1,a2,boardR0.62,boardR0.95,i%2?"#eee":"#111");
-    drawSector(a1,a2,boardR0.52,boardR0.62,i%2?"#2a2":"#c22");
-    drawSector(a1,a2,boardR0.18,boardR0.52,i%2?"#eee":"#111");
+    drawSector(a1,a2,boardR0.6,boardR0.95,i%2?"#eee":"#111");
+    drawSector(a1,a2,boardR0.5,boardR0.6,i%2?"#2a2":"#c22");
+    drawSector(a1,a2,boardR0.2,boardR0.5,i%2?"#eee":"#111");
     drawSector(a1,a2,boardR0.95,boardR,i%2?"#2a2":"#c22");
   }
 
-  drawCircle(boardR0.18,"#2a2");
+  drawCircle(boardR0.2,"#2a2");
   drawCircle(boardR0.08,"#c22");
 
   ctx.restore();
@@ -148,8 +91,18 @@ function drawCircle(r,color){
   ctx.fill();
 }
 
-function drawMitsubishi(){
-  ctx.fillStyle="#e60012";
+// ===== ダーツ =====
+function drawDart(){
+  if(!dart) return;
+
+  let scale = 1 - dart.t0.7;
+
+  ctx.save();
+  ctx.translate(dart.x, dart.y);
+  ctx.scale(scale, scale);
+
+  // 三菱マーク
+  ctx.fillStyle="red";
   for(let i=0;i<3;i++){
     ctx.save();
     ctx.rotate(iMath.PI2/3);
@@ -162,29 +115,14 @@ function drawMitsubishi(){
     ctx.fill();
     ctx.restore();
   }
-}
 
-function drawStuck(){
-  darts.forEach(d=>{
-    ctx.save();
-    ctx.translate(d.x,d.y);
-    drawMitsubishi();
-    ctx.restore();
-  });
-}
-
-function drawDart(){
-  if(!dart) return;
-  let scale=1-dart.t0.7;
-  ctx.save();
-  ctx.translate(dart.x,dart.y);
-  ctx.scale(scale,scale);
-  drawMitsubishi();
   ctx.restore();
 }
 
+// ===== 照準 =====
 function drawAim(){
   if(!aiming) return;
+
   ctx.beginPath();
   ctx.arc(aimX,aimY,spread,0,Math.PI2);
   ctx.strokeStyle="white";
@@ -193,144 +131,61 @@ function drawAim(){
 
 function updateAim(){
   if(!aiming) return;
-  spread+=spreadDir4;
+
+  spread += spreadDir4;
   if(spread<10){spread=10;spreadDir=1;}
   if(spread>80){spread=80;spreadDir=-1;}
 }
 
+// ===== 入力 =====
 canvas.addEventListener("pointerdown",e=>{
-  audioCtx.resume();
-  if(dartFlying) return;
   aiming=true;
   aimX=e.clientX;
   aimY=e.clientY;
 });
 
 canvas.addEventListener("pointerup",()=>{
-  if(!aiming||dartFlying) return;
+  if(!aiming || dartFlying) return;
+
   aiming=false;
 
-  let a=Math.random()Math.PI2;
-  let d=Math.random()spread;
+  let a = Math.random()Math.PI2;
+  let d = Math.random()*spread;
 
-  let tx=aimX+Math.cos(a)d;
-  let ty=aimY+Math.sin(a)d;
+  let tx = aimX + Math.cos(a)*d;
+  let ty = aimY + Math.sin(a)*d;
 
-  dart={sx:W/2,sy:H+100,tx,ty,x:W/2,y:H+100,t:0};
-  dartFlying=true;
+  dart = { sx:W/2, sy:H+100, tx, ty, x:W/2, y:H+100, t:0 };
+  dartFlying = true;
 });
 
+// ===== 更新 =====
 function updateDart(){
   if(!dartFlying) return;
 
-  dart.t+=0.04;
+  dart.t += 0.04;
 
   if(dart.t>=1){
     dartFlying=false;
-    let s=calcScore(dart.tx,dart.ty);
-
-    if(score-s<0){
-      playBustSound();
-      overlay.textContent="BUST";
-      overlay.style.opacity=1;
-      setTimeout(()=>overlay.style.opacity=0,800);
-      score=roundStartScore;
-      nextRound();
-      return;
-    }
-
-    score-=s;
-    roundScores.push(s);
-    playHitSound(s);
-
-    overlay.textContent=s;
-    overlay.style.opacity=1;
-    setTimeout(()=>overlay.style.opacity=0,500);
-
-    darts.push({x:dart.tx,y:dart.ty});
-    nextThrow();
   }
 
-  let t=dart.t;
-  dart.x=lerp(dart.sx,dart.tx,t);
-  let baseY=lerp(dart.sy,dart.ty,t);
-  dart.y=baseY-Math.sin(tMath.PI)150;
+  let t = dart.t;
+  dart.x = dart.sx + (dart.tx - dart.sx)*t;
+  let baseY = dart.sy + (dart.ty - dart.sy)t;
+  dart.y = baseY - Math.sin(tMath.PI)*150;
 }
 
-function nextThrow(){
-  throwCount++;
-  if(throwCount>3){
-    checkAward();
-    nextRound();
-  }
-  updateUI();
-}
-
-function nextRound(){
-  round++;
-  throwCount=1;
-  roundStartScore=score;
-  roundScores=[];
-  darts=[];
-  updateUI();
-}
-
-function checkAward(){
-  const sum=roundScores.reduce((a,b)=>a+b,0);
-  let award="";
-
-  if(sum===180) award="TON 80";
-  else if(sum>=151) award="HIGH TON";
-  else if(sum>=100) award="LOW TON";
-
-  if(roundScores.filter(s=>s===50).length===3) award="HAT TRICK";
-
-  if(award){
-    awardEl.textContent=award;
-    awardEl.style.opacity=1;
-    playFanfare();
-    setTimeout(()=>awardEl.style.opacity=0,1500);
-  }
-}
-
-function calcScore(x,y){
-  let dx=x-boardX;
-  let dy=y-boardY;
-  let r=Math.sqrt(dxdx+dydy);
-
-  if(r>boardR) return 0;
-  if(r<boardR0.08) return 50;
-  if(r<boardR0.18) return 25;
-
-  let angle=Math.atan2(dy,dx)+Math.PI/2;
-  if(angle<0) angle+=Math.PI2;
-
-  let nums=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
-  let i=Math.floor(angle/(Math.PI2/20));
-  let base=nums[i];
-
-  if(r>boardR0.95) return base2;
-  if(r>boardR0.52 && r<boardR0.62) return base*3;
-
-  return base;
-}
-
-function lerp(a,b,t){return a+(b-a)*t;}
-
-function updateUI(){
-  scoreEl.textContent=score;
-  roundEl.textContent=round;
-  throwEl.textContent=throwCount;
-}
-
+// ===== ループ =====
 function loop(){
   ctx.clearRect(0,0,W,H);
+
   updateAim();
   updateDart();
+
   drawBoard();
-  drawStuck();
   drawAim();
   drawDart();
+
   requestAnimationFrame(loop);
 }
 loop();
