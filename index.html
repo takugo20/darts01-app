@@ -1,43 +1,28 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Darts 501</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Darts 50.ver1.01</title>
 
 <style>
 body { margin:0; background:#111; overflow:hidden; color:white; font-family:sans-serif; }
 canvas { display:block; }
 
-#ui {
-  position:fixed;
-  top:10px;
-  left:10px;
-  font-size:18px;
-}
+#ui { position:fixed; top:10px; left:10px; font-size:18px; }
 
 #overlay {
-  position:fixed;
-  top:50%;
-  left:50%;
+  position:fixed; top:50%; left:50%;
   transform:translate(-50%,-50%);
-  font-size:80px;
-  font-weight:bold;
-  color:gold;
-  opacity:0;
-  pointer-events:none;
-  transition:.3s;
+  font-size:80px; color:gold;
+  opacity:0; transition:.3s;
 }
 
 #award {
-  position:fixed;
-  bottom:20%;
-  width:100%;
-  text-align:center;
-  font-size:36px;
-  color:#00e0ff;
-  opacity:0;
-  transition:.5s;
+  position:fixed; bottom:20%;
+  width:100%; text-align:center;
+  font-size:36px; color:#0ff;
+  opacity:0; transition:.5s;
 }
 </style>
 </head>
@@ -46,23 +31,23 @@ canvas { display:block; }
 <canvas id="game"></canvas>
 
 <div id="ui">
-  SCORE: <span id="score">501</span><br>
-  ROUND: <span id="round">1</span><br>
-  THROW: <span id="throw">1</span>
+SCORE: <span id="score">501</span><br>
+ROUND: <span id="round">1</span><br>
+THROW: <span id="throw">1</span>
 </div>
 
 <div id="overlay"></div>
 <div id="award"></div>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
-const scoreEl = document.getElementById("score");
-const roundEl = document.getElementById("round");
-const throwEl = document.getElementById("throw");
-const overlay = document.getElementById("overlay");
-const awardEl = document.getElementById("award");
+const scoreEl=document.getElementById("score");
+const roundEl=document.getElementById("round");
+const throwEl=document.getElementById("throw");
+const overlay=document.getElementById("overlay");
+const awardEl=document.getElementById("award");
 
 let W,H,boardX,boardY,boardR;
 
@@ -73,57 +58,46 @@ let dartFlying=false;
 let dart=null;
 let darts=[];
 
-// ===== ゲーム状態 =====
-let score=501;
-let round=1;
-let throwCount=1;
+let score=501, round=1, throwCount=1;
 let roundStartScore=501;
 let roundScores=[];
 
-// ===== Audio =====
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const audioCtx=new (window.AudioContext||window.webkitAudioContext)();
 
 function playHitSound(s){
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.connect(gain); gain.connect(audioCtx.destination);
-
-  osc.frequency.value = 300 + s8;
-  osc.type = s>=50 ? "sawtooth" : "square";
-  gain.gain.value = 0.2;
-
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.1 + s/300);
+  const o=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.frequency.value=300+s8;
+  o.type=s>=50?"sawtooth":"square";
+  g.gain.value=0.2;
+  o.start();
+  o.stop(audioCtx.currentTime+0.1+s/300);
 }
 
 function playBustSound(){
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.connect(gain); gain.connect(audioCtx.destination);
-
-  osc.frequency.setValueAtTime(200, audioCtx.currentTime);
-  osc.frequency.linearRampToValueAtTime(80, audioCtx.currentTime+0.4);
-  gain.gain.value = 0.3;
-
-  osc.start();
-  osc.stop(audioCtx.currentTime+0.4);
+  const o=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.frequency.setValueAtTime(200,audioCtx.currentTime);
+  o.frequency.linearRampToValueAtTime(80,audioCtx.currentTime+0.4);
+  g.gain.value=0.3;
+  o.start();
+  o.stop(audioCtx.currentTime+0.4);
 }
 
 function playFanfare(){
   [400,600,800].forEach((f,i)=>{
-    const osc=audioCtx.createOscillator();
-    const gain=audioCtx.createGain();
-    osc.connect(gain); gain.connect(audioCtx.destination);
-
-    osc.frequency.value=f;
-    gain.gain.value=0.2;
-
-    osc.start(audioCtx.currentTime + i0.1);
-    osc.stop(audioCtx.currentTime + i0.1 + 0.2);
+    const o=audioCtx.createOscillator();
+    const g=audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.frequency.value=f;
+    g.gain.value=0.2;
+    o.start(audioCtx.currentTime+i0.1);
+    o.stop(audioCtx.currentTime+i0.1+0.2);
   });
 }
 
-// ===== リサイズ =====
 function resize(){
   W=canvas.width=innerWidth;
   H=canvas.height=innerHeight;
@@ -134,7 +108,6 @@ function resize(){
 addEventListener("resize",resize);
 resize();
 
-// ===== ボード =====
 function drawBoard(){
   ctx.save();
   ctx.translate(boardX,boardY);
@@ -161,8 +134,8 @@ function drawBoard(){
 
 function drawSector(a1,a2,r1,r2,color){
   ctx.beginPath();
-  ctx.arc(boardX,boardY,r2,a1,a2);
-  ctx.arc(boardX,boardY,r1,a2,a1,true);
+  ctx.arc(0,0,r2,a1,a2);
+  ctx.arc(0,0,r1,a2,a1,true);
   ctx.closePath();
   ctx.fillStyle=color;
   ctx.fill();
@@ -170,12 +143,11 @@ function drawSector(a1,a2,r1,r2,color){
 
 function drawCircle(r,color){
   ctx.beginPath();
-  ctx.arc(boardX,boardY,r,0,Math.PI2);
+  ctx.arc(0,0,r,0,Math.PI2);
   ctx.fillStyle=color;
   ctx.fill();
 }
 
-// ===== 三菱ダーツ =====
 function drawMitsubishi(){
   ctx.fillStyle="#e60012";
   for(let i=0;i<3;i++){
@@ -203,8 +175,7 @@ function drawStuck(){
 
 function drawDart(){
   if(!dart) return;
-
-  let scale=1 - dart.t0.7;
+  let scale=1-dart.t0.7;
   ctx.save();
   ctx.translate(dart.x,dart.y);
   ctx.scale(scale,scale);
@@ -212,44 +183,29 @@ function drawDart(){
   ctx.restore();
 }
 
-// ===== 照準 =====
 function drawAim(){
   if(!aiming) return;
-
   ctx.beginPath();
   ctx.arc(aimX,aimY,spread,0,Math.PI2);
   ctx.strokeStyle="white";
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(aimX-10,aimY);
-  ctx.lineTo(aimX+10,aimY);
-  ctx.moveTo(aimX,aimY-10);
-  ctx.lineTo(aimX,aimY+10);
   ctx.stroke();
 }
 
 function updateAim(){
   if(!aiming) return;
-
-  spread += spreadDir4;
+  spread+=spreadDir4;
   if(spread<10){spread=10;spreadDir=1;}
   if(spread>80){spread=80;spreadDir=-1;}
 }
 
-// ===== 入力 =====
 canvas.addEventListener("pointerdown",e=>{
+  audioCtx.resume();
   if(dartFlying) return;
   aiming=true;
   aimX=e.clientX;
   aimY=e.clientY;
 });
-canvas.addEventListener("pointermove",e=>{
-  if(aiming){
-    aimX=e.clientX;
-    aimY=e.clientY;
-  }
-});
+
 canvas.addEventListener("pointerup",()=>{
   if(!aiming||dartFlying) return;
   aiming=false;
@@ -264,7 +220,6 @@ canvas.addEventListener("pointerup",()=>{
   dartFlying=true;
 });
 
-// ===== ダーツ =====
 function updateDart(){
   if(!dartFlying) return;
 
@@ -272,45 +227,36 @@ function updateDart(){
 
   if(dart.t>=1){
     dartFlying=false;
-
     let s=calcScore(dart.tx,dart.ty);
 
-    // バースト
-    if(score - s < 0){
+    if(score-s<0){
       playBustSound();
       overlay.textContent="BUST";
-      showOverlay();
-
-      score = roundStartScore;
+      overlay.style.opacity=1;
+      setTimeout(()=>overlay.style.opacity=0,800);
+      score=roundStartScore;
       nextRound();
       return;
     }
 
-    score -= s;
+    score-=s;
     roundScores.push(s);
-
     playHitSound(s);
 
     overlay.textContent=s;
-    showOverlay();
+    overlay.style.opacity=1;
+    setTimeout(()=>overlay.style.opacity=0,500);
 
     darts.push({x:dart.tx,y:dart.ty});
-
     nextThrow();
   }
 
   let t=dart.t;
-  dart.x = lerp(dart.sx,dart.tx,t);
-  let baseY = lerp(dart.sy,dart.ty,t);
-  dart.y = baseY - Math.sin(tMath.PI)150;
+  dart.x=lerp(dart.sx,dart.tx,t);
+  let baseY=lerp(dart.sy,dart.ty,t);
+  dart.y=baseY-Math.sin(tMath.PI)150;
 }
 
-function showOverlay(){
-  overlay.style.opacity=1;
-  setTimeout(()=>overlay.style.opacity=0,500);
-}
-
-// ===== ラウンド =====
 function nextThrow(){
   throwCount++;
   if(throwCount>3){
@@ -329,10 +275,8 @@ function nextRound(){
   updateUI();
 }
 
-// ===== アワード =====
 function checkAward(){
-  const sum = roundScores.reduce((a,b)=>a+b,0);
-
+  const sum=roundScores.reduce((a,b)=>a+b,0);
   let award="";
 
   if(sum===180) award="TON 80";
@@ -349,7 +293,6 @@ function checkAward(){
   }
 }
 
-// ===== 計算 =====
 function calcScore(x,y){
   let dx=x-boardX;
   let dy=y-boardY;
@@ -372,27 +315,22 @@ function calcScore(x,y){
   return base;
 }
 
-function lerp(a,b,t){ return a+(b-a)*t; }
+function lerp(a,b,t){return a+(b-a)*t;}
 
-// ===== UI =====
 function updateUI(){
   scoreEl.textContent=score;
   roundEl.textContent=round;
   throwEl.textContent=throwCount;
 }
 
-// ===== ループ =====
 function loop(){
   ctx.clearRect(0,0,W,H);
-
   updateAim();
   updateDart();
-
   drawBoard();
   drawStuck();
   drawAim();
   drawDart();
-
   requestAnimationFrame(loop);
 }
 loop();
